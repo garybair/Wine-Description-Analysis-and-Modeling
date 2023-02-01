@@ -1,2 +1,2 @@
 # Wine-Description-Analysis-and-Modeling
-The wine industry . This project aims to +
+The wine industry is full of history and tradition. For those interested in the topic, this presents an abundance of opportunities to explore a variety of unique wines and document their experiences. Unfortunately, this history and tradition often presents a barrier to entry for those new to the hobby with the sheer number and diversity of products often causing confusion and uncertainty . This project aims to help bridge this knowledge gap by identifying key verbiage present in descriptions and tasting notes as means of differentiating popular variants wine.
