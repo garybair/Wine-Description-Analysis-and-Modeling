@@ -1,27 +1,23 @@
 from time import sleep
 from bs4 import BeautifulSoup
-import os
 import time
 import requests
 import json
-from expressvpn import connect, disconnect, connect_alias
-from expressvpn.wrapper import random_connect
-
 
 class Scraper:
 
-    def __init__(self, pullQuantity = 5000):
+    def __init__(self, pullQuantity = 10000):
         self.session = requests.Session()
         self.startTime = time.time()
         self.pullQuantity = pullQuantity
         self.staticURL = 'https://www.wine.com'
-        self.targetDirectory = 'data/wine-com'
-        self.filePath = 'data/wine-com/raw/{}.txt'.format(self.startTime)
+        self.siteMapDirectory = '../../data/wine-com/'
+        self.filePath = '../../data/wine-com/raw/{}.txt'.format(self.startTime)
         self.headerData = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36'}
 
        #determine if sitemap exists, initialize if not
         try:
-            with open(self.targetDirectory + '/site-map.json', 'r') as fileObj:
+            with open(self.siteMapDirectory + '/site-map.json', 'r') as fileObj:
                 self.siteMap = json.load(fileObj)
         except:
             self.siteMap = {}
@@ -32,7 +28,6 @@ class Scraper:
         fileObj.close()
             
     def scrape(self):
-        random_connect()
         #determine landing page map exists
         if len(self.siteMap) == 0:
             self.scrapeLandingPage()
@@ -44,7 +39,7 @@ class Scraper:
             self.searchURL = value
             self.scrapeParseResultsPage()
             #write sitemap to JSON file
-            with open(self.targetDirectory + '/site-map.json', 'w') as fileObj:
+            with open(self.siteMapDirectory + '/site-map.json', 'w') as fileObj:
                 json.dump(self.siteMap, fileObj)
             fileObj.close()
 
@@ -79,7 +74,6 @@ class Scraper:
             for row in resultsContainer.find_all('div', attrs = {'class': 'prodItemInfo'}):
                 productShortLink = row.a['href']
                 self.productURL = self.staticURL + productShortLink
-                print(self.productURL)
                 if self.productURL not in self.siteMap[self.searchVarietal]:
                     self.scrapeProductPage()
                     self.parseProductPage()
@@ -123,23 +117,24 @@ class Scraper:
 
             #winemaker notes
             prodNotes = self.productPageSoup.find('div', attrs = {'class':'pipWineNotes_copy viewMoreModule js-expanded'})
-            self.prodData['Description'] = prodNotes.find('div', attrs = {'class': 'viewMoreModule_text'}).text
+            wineMakerNotes = prodNotes.find('div', attrs = {'class': 'viewMoreModule_text'}).text
+            wineMakerNotes = wineMakerNotes.replace('\n', ' ')
+            self.prodData['Description'] = wineMakerNotes
             
             #professional reviews
             prodProfessionalReviews = self.productPageSoup.find('div', attrs = {'class': 'viewMoreModule_text viewMoreModule-reviews'})
-            self.prodReviews = []
-            for row in prodProfessionalReviews.find_all_next('div', attrs = {'class': 'pipProfessionalReviews_list'}):
-                self.prodReviews.append(row.find('div', attrs = {'class': 'pipSecContent_copy'}).text)                                          
-            self.prodData['Reviews'] = ' '.join(self.prodReviews)
+            self.prodData['Reviews'] = ''
+            for row in prodProfessionalReviews.find_all('div', attrs = {'class': 'pipProfessionalReviews_list'}):
+                reviewData = row.find('div', attrs = {'class': 'pipSecContent_copy'}).text
+                reviewData = reviewData.replace('\n', ' ')                             
+                self.prodData['Reviews'] = self.prodData['Reviews'] + ';;' + reviewData
 
-            
             #write data to disk
             self.writeProductData()
             self.siteMap[self.searchVarietal][self.productURL]['parseStatus'] = 'success'
-            print('product {} parse success'.format(self.productURL))
         except Exception:
             self.siteMap[self.searchVarietal][self.productURL]['parseStatus'] = 'fail'
-            print('product {} parse failed'.format(self.productURL))
+            print('{} parse failed'.format(self.productURL))
 
     #validated
     def writeProductData(self):
@@ -152,7 +147,8 @@ class Scraper:
                                                            self.prodData['Family'],
                                                            self.prodData['Description'],
                                                            self.prodData['Reviews']))
-                self.pullCount += 1
+                file.close()
+            self.pullCount += 1
             self.siteMap[self.searchVarietal][self.productURL]['writeStatus'] = 'success'
         except Exception:
             self.siteMap[self.searchVarietal][self.productURL]['writeStatus'] = 'fail'
