@@ -29,24 +29,23 @@ class Scraper:
         fileObj.close()
             
     def scrape(self):
+        
         #determine landing page map exists
         if len(self.siteMap) == 0:
             self.scrapeLandingPage()
             self.parseLandingPage()
+        
         #iterate through wine varieties
         for key, value in self.siteMap['landingPageLinks'].items():
             self.searchVarietal = key
             self.searchURL = value
             self.scrapeParseResultsPage()
-            #write sitemap to JSON file
-            with open(self.siteMapDirectory + '/site-map.json', 'w') as fileObj:
-                json.dump(self.siteMap, fileObj)
-            fileObj.close()
+
         #determine runtime
-        self.TotalTimeRan = time.time() - self.startTime
-        hours = int(self.TotalTimeRan // 3600)
-        minutes = int((self.TotalTimeRan % 3600) // 60)
-        seconds = int(self.TotalTimeRan % 60)
+        self.totalTimeRan = time.time() - self.startTime
+        hours = int(self.totalTimeRan // 3600)
+        minutes = int((self.totalTimeRan % 3600) // 60)
+        seconds = int(self.totalTimeRan % 60)
         print(f'{self.pullCount} items scraped')
         print(f'Total time taken: {hours} hours, {minutes} minutes, {seconds} seconds')
 
@@ -75,78 +74,73 @@ class Scraper:
         while self.pullCount < self.pullQuantity and self.searchURL is not None:
             print(self.searchURL)
             resultsPageResponse = self.session.get(self.searchURL, headers = self.headerData)
+            time.sleep(1)
             self.resultsPageSoup = BeautifulSoup(resultsPageResponse.content, "html.parser")
             resultsContainer = self.resultsPageSoup.find('ul', attrs = {'class':'listGridLayout_list'})
             #iterate through results page
-            for row in resultsContainer.find_all('div', attrs = {'class': 'listGridItemInfo'}):
-                productShortLink = row.a['href']
-                self.productURL = self.staticURL + productShortLink
-                self.scrapeProductPage()
-                self.parseProductPage()
-            #determine if next page exists
             try:
-                time.sleep(1)
+                for row in resultsContainer.find_all('div', attrs = {'class': 'listGridItemInfo'}):
+                    productShortLink = row.a['href']
+                    self.productURL = self.staticURL + productShortLink
+                    #determine if url has already been scraped
+                    if self.productURL not in self.siteMap[self.searchVarietal]:
+                        print(self.productURL)
+                        self.scrapeProductPage()
+                        self.parseProductPage()
+                        time.sleep(.5)
+            except Exception:
+                print(f'{self.searchURL} results page parse fail')
+                time.sleep(5)
+            #determine if next page exists - if so assign next searchURL
+            try:
                 paginationContainer = self.resultsPageSoup.find('div', attrs = {'class':'nextPagePagination'})
                 self.searchURL = paginationContainer.a['href']
-                time.sleep(1)
             except Exception:
                 self.searchURL = None
+                print(f'{self.productURL} pagination fail')
+                
+            #write sitemap to JSON file
+            with open(self.siteMapDirectory + '/site-map.json', 'w') as fileObj:
+                json.dump(self.siteMap, fileObj)
+            fileObj.close()
             
     #validated
     def scrapeProductPage(self):
         if self.productURL not in self.siteMap[self.searchVarietal]:
             self.siteMap[self.searchVarietal][self.productURL] = dict()
         
-        try:
-            productPageResponse = self.session.get(self.productURL, headers = self.headerData)
-            self.productPageSoup = BeautifulSoup(productPageResponse.content, "html.parser")
-            
-            self.siteMap[self.searchVarietal][self.productURL]['scrapeStatus'] = 'success'
-        except Exception:
-            self.siteMap[self.searchVarietal][self.productURL]['scrapeStatus'] = 'fail'
-            print(f'{self.productURL} page scrape fail')
-            
+        productPageResponse = self.session.get(self.productURL, headers = self.headerData)
+        self.productPageSoup = BeautifulSoup(productPageResponse.content, "html.parser")
+        
     #validated
     def parseProductPage(self):
         try:
             #generate dictionary for parsed fields
             self.prodData = dict()
             
-            #product info
+            #product info - cannot be null
             prodInfo = self.productPageSoup.find('div', attrs = {'class': re.compile(r'pipProdInfo.*')})
+            self.prodData['Product_Name'] = prodInfo.find('h1', attrs = {'class':'pipName'}).text
+            self.prodData['Product_Variety'] = prodInfo.find('span', attrs = {'class':'prodItemInfo_varietal'}).text
+            self.prodData['Product_Origin'] = prodInfo.find('span', attrs = {'class':'prodItemInfo_originText'}).text
+            self.prodData['Product_Family'] = self.searchVarietal
+            #print(self.prodData['Product_Name'], self.prodData['Product_Variety'], self.prodData['Product_Origin'], self.prodData['Product_Family'])
             
-            try:
-                self.prodData['Product_Name'] = prodInfo.find('h1', attrs = {'class':'pipName'}).text
-            except Exception:
-                print(f'{self.productURL} product name parse fail')                
-            
-            try:
-                self.prodData['Product_Variety'] = prodInfo.find('span', attrs = {'class':'prodItemInfo_varietal'}).text
-            except Exception:
-                print(f'{self.productURL} product variety parse fail')
-            
-            try:
-                self.prodData['Product_Origin'] = prodInfo.find('span', attrs = {'class':'prodItemInfo_originText'}).text
-            except Exception:
-                print(f'{self.productURL} product origin parse fail')
-            
-            try:
-                #product attributes
-                self.prodData['Product_Family'] = self.searchVarietal
-            except Exception:
-                print(f'{self.productURL} product family parse fail')
-                
             try:
                 #average user product ratings
                 self.prodData['User_Avg_Rating'] = self.productPageSoup.find('span', attrs = {'class':'averageRating_average'}).text
             except Exception:
+                self.prodData['User_Avg_Rating'] = ''
                 print(f'{self.productURL} average user product ratings parse fail')
+            #print(self.prodData['User_Avg_Rating'])
                 
             try:
                 #product ratings count
                 self.prodData['User_Rating_Count'] = self.productPageSoup.find('span', attrs = {'class':'averageRating_number'}).text
             except Exception:
+                self.prodData['User_Rating_Count'] = ''
                 print(f'{self.productURL} product ratings count parse fail')
+            #print(self.prodData['User_Rating_Count'])
             
             try:
                 #winemaker description
@@ -157,16 +151,16 @@ class Scraper:
                 wineMakerNotes = wineMakerNotes.replace(',', ' ')
                 wineMakerNotes = wineMakerNotes.replace(';', ' ')
                 wineMakerNotes = wineMakerNotes.replace('|', ' ')
-                wineMakerNotes = re.sub('<br\s*/?>', ' ', wineMakerNotes)
-                wineMakerNotes = re.sub('<\/?p[^>]*>', ' ', wineMakerNotes)   
                 self.prodData['Winemaker_Description'] = wineMakerNotes
-                #print(self.prodData['Winemaker_Description'])
             except Exception:
+                self.prodData['Winemaker_Description'] = ''
                 print(f'{self.productURL} winemaker description parse fail')
+            #print(self.prodData['Winemaker_Description'])
             
             try:
                 #critical reviews
                 prodProfessionalReviews = self.productPageSoup.find('div', attrs = {'class': 'viewMoreModule_text viewMoreModule-reviews'})
+                self.prodData['Critical_Reviews'] = ''
                 reviewList = []
                 for row in prodProfessionalReviews.find_all('div', attrs = {'class': 'pipProfessionalReviews_list'}):
                     reviewerName = row.find('div', attrs = {'class': 'pipProfessionalReviews_authorName'}).text
@@ -177,13 +171,13 @@ class Scraper:
                     reviewerText = reviewerText.replace(',', ' ')
                     reviewerText = reviewerText.replace(';', ' ')
                     reviewerText = reviewerText.replace('|', ' ')
-                    reviewerText = re.sub('<br\s*/?>', ' ', reviewerText)
-                    reviewerText = re.sub('<\/?p[^>]*>', ' ', reviewerText) 
                     reviewList.append(f'{reviewerName},{reviewerRating},{reviewerText}')
-                    self.prodData['Critical_Reviews'] = ';'.join(reviewList)
+                self.prodData['Critical_Reviews'] = ';'.join(reviewList)
             except Exception:
+                self.prodData['Critical_Reviews'] = ''
                 print(f'{self.productURL} critical reviews parse fail')
-
+            #print(self.prodData['Critical_Reviews'])
+            
             #write data to disk
             self.writeProductData()
             self.siteMap[self.searchVarietal][self.productURL]['parseStatus'] = 'success'
@@ -209,6 +203,7 @@ class Scraper:
             self.siteMap[self.searchVarietal][self.productURL]['writeStatus'] = 'success'
         except Exception:
             self.siteMap[self.searchVarietal][self.productURL]['writeStatus'] = 'fail'
+            print(f'{self.productURL} write fail')
 
 
 
