@@ -11,38 +11,27 @@ class preprocess_text(TransformerMixin):
         self.stop_words = set(stopwords.words('english'))
     
     def transform(self, X):
-        if isinstance(X, pd.Series):
+        #transform to dataframe
+        X = pd.DataFrame(X)
+        #get colnames
+        colnames = X.columns
+        #iterate through columns
+        for col in colnames:
             #standardize type
-            X = X.astype(str)
-            # lower text
-            X = X.str.lower()
+            X[col] = X[col].astype(str)
+            # convert text to lowercase
+            X[col] = X[col].str.lower()
             # remove punctuation
-            X = X.str.replace('\W+', ' ', regex = True)
+            X[col] = X[col].str.replace('\W+', ' ', regex = True)
             # tokenize text into individual words
-            X = X.str.split()
+            X[col] = X[col].str.split()
             # remove stopwords
-            X = X.apply(lambda x: [word for word in x if word not in (self.stop_words)])
+            X[col] = X[col].apply(lambda x: [word for word in x if word not in (self.stop_words)])
             # join words
-            X = X.apply(lambda x: ' '.join(x))
-            return X
-        elif isinstance(X, pd.DataFrame):
-            colnames = X.columns
-            for col in colnames:
-                #standardize type
-                X[col] = X[col].astype(str)
-                # convert text to lowercase
-                X[col] = X[col].str.lower()
-                # remove punctuation
-                X[col] = X[col].str.replace('\W+', ' ', regex = True)
-                # tokenize text into individual words
-                X[col] = X[col].str.split()
-                # remove stopwords
-                X[col] = X[col].apply(lambda x: [word for word in x if word not in (self.stop_words)])
-                # join words
-                X[col] = X[col].apply(lambda x: ' '.join(x))
-            return X
-        else:
-            return X
+            X[col] = X[col].apply(lambda x: ' '.join(x))
+        #write to array
+        X = X.values
+        return X
     
     def fit(self, X, y=None):
         return self
