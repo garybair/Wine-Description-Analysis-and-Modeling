@@ -5,9 +5,9 @@
 </head>
 <body>
     <h1>Predictions</h1>
-    <p>Our Naive Bayes model predicts that the primary varietal belonging to this description is:{{ main_varietal }}</p>
+    <p>Our Naive Bayes model predicts that the submitted description belongs to the {{ main_varietal }} family of wine.</p>
 
-    <p>Our XGBoost model estimates a sentiment score of:{{ sentiment }}</p>
+    <p>Our XGBoost model estimates that a wine with the submitted description would observe a score of score of: {{ sentiment }}</p>
 </body>
 <footer>
   <p>The code used to generate these predictions can referenced at: <a href="https://github.com/garybair/Wine-Description-Analysis-and-Modeling">GitHub</a></p>
