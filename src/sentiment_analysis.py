@@ -35,9 +35,17 @@ class SIAScaler(TransformerMixin):
     
 class CovertToList(TransformerMixin):
     def transform(self, X):
-        X = X.iloc[:, 0].tolist()
-        X = [str(i) for i in X]
-        return X
+        transformed_data = []
+        #transform to dataframe
+        X = pd.DataFrame(X)
+        #get colnames
+        colnames = X.columns
+        #iterate through columns
+        for col in colnames:
+            X = X[col].tolist()
+            X = [str(i) for i in X]
+            transformed_data.extend(X)
+        return np.array(transformed_data)
 
     def fit(self, X, y=None):
         return self
