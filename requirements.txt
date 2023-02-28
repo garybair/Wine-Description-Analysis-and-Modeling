@@ -8,10 +8,6 @@ brotlipy==0.7.0
 catalogue==2.0.8
 colorama==0.4.6
 comtypes==1.1.10
-conda==23.1.0
-conda-build==3.22.0
-conda-repo-cli==1.0.20
-conda-verify==3.4.2
 confection==0.0.4
 conllu==4.5.2
 constantly==15.1.0
@@ -49,7 +45,6 @@ mpmath==1.2.1
 munkres==1.1.4
 murmurhash==1.0.9
 mypy-extensions==0.4.3
-navigator-updater==0.3.0
 numpy==1.22.0
 openpyxl==3.0.10
 overrides==3.1.0
