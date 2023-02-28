@@ -14,7 +14,6 @@ constantly==15.1.0
 cssselect==1.1.0
 cymem==2.0.7
 cytoolz==0.11.0
-daal4py==2021.6.0
 datashape==0.5.4
 Deprecated==1.2.13
 et-xmlfile==1.1.0
