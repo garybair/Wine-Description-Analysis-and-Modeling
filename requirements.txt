@@ -6,7 +6,6 @@ blis==0.7.9
 bpemb==0.3.4
 brotlipy==0.7.0
 catalogue==2.0.8
-clyent==1.2.2
 colorama==0.4.6
 comtypes==1.1.10
 conda==23.1.0
